@@ -19,6 +19,10 @@ in the wolfSSL repo's INSTALL file.
 
 https://github.com/wolfSSL/wolfssl/blob/master/INSTALL
 
+Note that you can also reach out to facts@wolfssl.com to get our implementation
+of LMS/HSS along with instructions on how to install it. In that case you won't
+need the hash-sigs library.
+
 If building with `--with-libxmss=<path>`, the XMSS/XMSS^MT example requires
 that the xmss-reference repository has been cloned, patched, and built. Please
 see item 20 in the wolfSSL repo's INSTALL file.
@@ -27,6 +31,8 @@ The patch to use is `0001-Patch-to-support-wolfSSL-xmss-reference-integration.pa
 This patch includes an addendum readme, `patch_readme.md`, that lists all changes made and explains their rationale.
 
 # Building the LMS/HSS example
+
+## Hash-Sigs
 
 Configure the Makefile to point to your hash-sigs install:
 
@@ -44,12 +50,30 @@ Then build:
 $ make lms_example
 ```
 
+## wolfSSL LMS/HSS Implementation
+
+First, follow instructions for getting the wolfSSL LMS/HSS implementation source
+code in place. Those instructions will come with the implementation source code.
+
+Configure build and install wolfssl:
+
+$ ./autogen.sh (only required if cloned from github)
+$ ./configure --enable-experimental --enable-lms=wolfssl
+$ make all
+$ sudo make install
+$ sudo ldconfig (required on some systems)
+
+Navigate your shell to the directory that contains this README.md file and
+build the example:
+
+$ gcc -o lms_example lms_example.c -Wall -I/usr/local/include -I -L/usr/local/lib -lm  -lwolfssl
+
 ## Signing and Verifying a Message with LMS/HSS
 
 This example will generate an LMS/HSS key pair with L=levels, H=height, and
-W=Winternitz parameters, then sign and verify a given number of signatures.
-It will also print the signature size, the total number of signatures, and
-the public and private key lengths.
+W=Winternitz parameters, print the public and private key, then sign and verify
+a given number of signatures. It will also print the signature size, the total
+number of signatures, and the public and private key lengths.
 
 While LMS/HSS have small public and private keys, and fast signing and
 verifying, the initial key generation can be quite slow and intensive,

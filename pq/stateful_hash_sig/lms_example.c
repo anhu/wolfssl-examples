@@ -24,17 +24,25 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef HAVE_LIBLMS
+#if defined(HAVE_LIBLMS) || defined(WOLFSSL_WC_LMS)
+
+#if defined(HAVE_LIBLMS) && defined(WOLFSSL_WC_LMS)
+#error Please define only one of HAVE_LIBLMS or WOLFSSL_WC_LMS
+#endif
 
 #include <wolfssl/wolfcrypt/lms.h>
+#ifdef WOLFSSL_WC_LMS
+#include <wolfssl/wolfcrypt/wc_lms.h>
+#else
 #include <wolfssl/wolfcrypt/ext_lms.h>
+#endif
 
 static void print_usage(void);
 static int  write_key_file(const byte * priv, word32 privSz, void * context);
 static int  read_key_file(byte * priv, word32 privSz, void * context);
 static int  do_lms_example(int levels, int height, int winternitz,
                            size_t sigs_to_do);
-static void dump_hex(const char * what, const uint8_t * buf, size_t len);
+static void dump_hex(const char * what, const byte * buf, size_t len);
 
 static WC_RNG rng;
 
@@ -315,13 +323,10 @@ do_lms_example(int    levels,
 
     printf("...done!\n");
 
-    if (sigs_to_do == 0) {
-        /* If using callbacks the .priv member will not be filled. */
-        read_key_file(priv, privSz, (void *) filename);
-        dump_hex("priv", priv, privSz);
-        dump_hex("pub", signingKey.pub, pubSz);
-        goto exit_lms_example;
-    }
+    /* If using callbacks the .priv member will not be filled. */
+    read_key_file(priv, privSz, (void *) filename);
+    dump_hex("private key", priv, privSz);
+    dump_hex("public key", signingKey.pub, pubSz);
 
     sig = malloc(sigSz);
     if (sig == NULL) {
@@ -349,6 +354,8 @@ do_lms_example(int    levels,
             goto exit_lms_example;
         }
 
+        dump_hex("signature", sig, sigSz);
+
         ret = wc_LmsKey_Verify(&verifyKey, sig, sigSz, (const byte *) msg,
                                strlen(msg));
         if (ret) {
@@ -375,10 +382,10 @@ exit_lms_example:
 
 static void
 dump_hex(const char *    what,
-         const uint8_t * buf,
+         const byte *    buf,
          size_t          len)
 {
-    printf("%s\n", what);
+    printf("%s (%ld bytes)\n", what, len);
     for (size_t i = 0; i < len; ++i) {
         printf("0x%02X ", buf[i]);
 
@@ -397,8 +404,9 @@ dump_hex(const char *    what,
 #else
 
 int main(int argc, char** argv) {
-    printf("This requires the --with-liblms flag.\n");
+    printf("This requires the --with-liblms or --enable-lms=wolfssl flag.\n");
+    printf("Please also add the --enable-experimental flag.\n");
     return 0;
 }
-#endif /* WITH_LILMS */
+#endif /* HAVE_LIBLMS || WOLFSSL_WC_LMS */
 
