@@ -38,7 +38,10 @@
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 
 #define DEFAULT_PORT 11111
-
+/* TODO: get the right value for your particular setup.
+ * For maxq10xx, its 0x1004 */
+#define PRIV_KEY_ID  {0x10, 0x04}
+#define CERT_FILE "../certs/client-ecc-cert.pem"
 int client_tls(const char *cacert, int devId, Pkcs11Token* token)
 {
     int                sockfd;
@@ -46,6 +49,7 @@ int client_tls(const char *cacert, int devId, Pkcs11Token* token)
     char               buff[256];
     size_t             len;
     int                ret;
+    unsigned char      privKeyId[] = PRIV_KEY_ID;
 
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx = NULL;
@@ -110,6 +114,21 @@ int client_tls(const char *cacert, int devId, Pkcs11Token* token)
 
     /* validate peer certificate */
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* Load server certificates into WOLFSSL_CTX */
+    if (wolfSSL_CTX_use_certificate_file(ctx, CERT_FILE, SSL_FILETYPE_PEM)
+        != SSL_SUCCESS) {
+        fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
+                CERT_FILE);
+        return -1;
+    }
+
+    /* Load server key into WOLFSSL_CTX */
+    if (wolfSSL_CTX_use_PrivateKey_id(ctx, privKeyId, sizeof(privKeyId), devId,
+            2048/8) != SSL_SUCCESS) {
+        fprintf(stderr, "ERROR: failed to set id.\n");
+        return -1;
+    }
 
     /* Open the PKCS11 token. */
     if ((ret = wc_Pkcs11Token_Open(token, 1)) != 0) {
