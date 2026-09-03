@@ -98,6 +98,7 @@ android/wolfssljni-ndk-sample/proguard-project.txt
 /tls/client-tls-perf
 /tls/client-tls-resume
 /tls/client-tls-uart
+/tls/client-tls-unknownext
 /tls/client-tls-writedup
 
 /tls/memory-tls
@@ -118,6 +119,7 @@ android/wolfssljni-ndk-sample/proguard-project.txt
 /tls/server-tls-pkcallback
 /tls/client-tls-pkcallback
 /tls/server-tls-uart
+/tls/server-tls-unknownext
 /tls/server-tls-verifycallback
 /tls/server-tls-writedup
 /tls/client-tls13-certauth-clienthello

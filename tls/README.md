@@ -1592,6 +1592,96 @@ Expected behavior:
   processing and again after the handshake is complete.
 
 
+## Unknown Extension Callbacks (Issuing Distribution Point in a CRL)
+
+See `client-tls-unknownext.c` and `server-tls-unknownext.c`.
+
+wolfSSL decodes the X.509 and CRL extensions it knows about. An extension it
+does not recognize is ignored when non-critical and, per RFC 5280, rejected
+when critical. An application can be shown such extensions, and decide whether
+to accept them, by registering callbacks on the certificate manager that
+belongs to the `WOLFSSL_CTX`:
+
+```c
+WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
+wolfSSL_CertManagerSetUnknownExtCallback(cm, CertUnknownExtCb);   /* certificates */
+wolfSSL_CertManagerSetCRLUnknownExtCallback(cm, CrlUnknownExtCb); /* CRLs */
+```
+
+Both callbacks have the same signature. They receive the extension's OID as an
+array of arcs, whether it is critical, and the raw DER of its value. Returning
+0 accepts the extension; returning a negative value rejects it and fails the
+parse of the certificate or CRL it came from. The callbacks run before the
+signature on the certificate or CRL is checked, so their input is untrusted.
+
+- The certificate callback covers certificates the certificate manager parses:
+  CA certificates loaded with `wolfSSL_CTX_load_verify_locations()` and buffers
+  passed to `wolfSSL_CertManagerVerifyBuffer()`.
+- The CRL callback covers every CRL loaded into the context, for CRL-level and
+  per-entry extensions alike.
+
+The example exercises the CRL callback. `certs/crl-idp/gen-crl-idp.sh` uses
+OpenSSL to generate a CA, a server certificate whose CRL Distribution Points
+extension points at `http://crl.example.com/crl-idp.crl`, a second server
+certificate that is revoked, and a CRL (`crl-idp.pem`) carrying a critical
+Issuing Distribution Point extension (OID 2.5.29.28) with the same URI. wolfSSL
+does not decode IDP, so loading that CRL fails unless a callback accepts it.
+The generated files are checked in; re-run the script only to regenerate them.
+
+Build and install wolfSSL with CRL support and the unknown-extension callback
+enabled:
+
+```
+$ ./configure --enable-crl CFLAGS="-DWOLFSSL_CUSTOM_OID -DHAVE_OID_DECODING"
+$ make
+$ sudo make install
+```
+
+Build the examples:
+
+```
+make client-tls-unknownext server-tls-unknownext
+```
+
+Run them in separate terminals:
+
+```
+./server-tls-unknownext
+```
+
+```
+./client-tls-unknownext 127.0.0.1
+```
+
+The client prints what the callback was handed, loads the CRL, and completes a
+handshake in which the server certificate is checked against that CRL:
+
+```
+Registered unknown-extension callbacks
+Unknown CRL extension: OID 2.5.29.28, critical, 45 bytes of DER
+    30 2b a0 26 a0 24 86 22 68 74 74 70 3a 2f 2f 63 72 6c 2e 65
+    78 61 6d 70 6c 65 2e 63 6f 6d 2f 63 72 6c 2d 69 64 70 2e 63
+    72 6c 81 01 ff
+    -> Issuing Distribution Point (RFC 5280 5.2.5): accepting
+Loaded ../certs/crl-idp/crl-idp.pem
+Connected; server certificate passed CRL check
+Message for server:
+```
+
+Two variations show what the callback changes:
+
+- `./client-tls-unknownext 127.0.0.1 nocb` skips registering the callbacks.
+  The CRL load then fails with `ASN_CRIT_EXT_E` (-160), wolfSSL's default for
+  a critical extension it does not understand.
+- `./server-tls-unknownext revoked` presents the certificate the CRL lists as
+  revoked. The CRL loads as before, but the handshake fails with
+  `CRL_CERT_REVOKED` (-361).
+
+Accepting an extension wolfSSL does not decode means the application takes on
+its semantics. An IDP can narrow what a CRL covers (only user certificates,
+only some revocation reasons, indirect CRLs), so a production application would
+decode the DER it is handed and honor those fields.
+
 ## Support
 
 Please contact wolfSSL at support@wolfssl.com with any questions, bug fixes,
